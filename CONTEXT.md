@@ -6,9 +6,11 @@ through. No timer, no pressure, no typing. Rebuilt 2026-10-05 from the
 "Get Started" study timer, at the same URL so the home-screen install keeps
 working.
 
-**Live:** https://get-my-lazy-ass-off.netlify.app. The Netlify project is
-`get-my-lazy-ass-off`, site id `7938940a-e332-46d2-acfd-a7fed3d3c9f1`.
-Team SSO is on for non-production deploys only, so production is public.
+**Live:** https://sussiboicode.github.io/GET-MY-LAZY-ASS-OFF/ (GitHub Pages,
+public repo `SussiBoiCode/GET-MY-LAZY-ASS-OFF`, served from `main` at the root).
+It moved off Netlify on 2026-10-05, when the Netlify account ran out of credits.
+The old https://get-my-lazy-ass-off.netlify.app still serves the retired timer
+app and gets no updates.
 
 ## The cards
 Picked at random by weight, no repeats inside a kind until all of it has
@@ -43,8 +45,9 @@ removed and added again.
   double-click (file://), where the service worker is simply skipped.
 - `sw.js`: offline cache. **Bump `VERSION` on every change**, or installed
   copies keep the old files.
-- `manifest.webmanifest`, `netlify.toml`: the netlify.toml headers keep `sw.js`
-  and `index.html` fresh and give the manifest its proper content type.
+- `manifest.webmanifest`: GitHub Pages already serves it as
+  `application/manifest+json`, so no header config is needed.
+- `.nojekyll`: stops GitHub Pages from running Jekyll on the repo.
 - `scripts/make-icons.mjs`: regenerates the PNG icons (a soft apricot circle)
   with `node scripts/make-icons.mjs`. It needs no dependencies.
 
@@ -58,6 +61,6 @@ removed and added again.
 - Animations are slow, and all of them stop under `prefers-reduced-motion`.
 
 ## Deploying
-Use the Netlify MCP deploy with the site id above, run from this folder
-(no build step). Always deploy to the existing site. After a deploy, open the
+Commit and push to `main` (no build step); GitHub Pages publishes it within
+a minute or two. Don't rename the repo, because that changes the URL. After a deploy, open the
 app twice: the first launch can still show the cached old version.
