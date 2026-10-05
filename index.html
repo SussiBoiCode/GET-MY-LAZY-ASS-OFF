@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Breathe Out</title>
+<meta name="description" content="A calm place to slow down when everything feels like too much.">
+<meta name="theme-color" content="#101318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Breathe Out">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+/* Two calm looks, picked from the gear sheet. Everything themable is a variable. */
+:root {
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --font-ui: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-card: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --radius: 16px;
+}
+html[data-theme="night"] {
+  color-scheme: dark;
+  --bg: #101318; --card: #171B22; --fg: #E4DFD6; --muted: #8C929B; --line: #2C313A; --track: #232831;
+  --accent: #E7B07E; --accent-soft: rgba(231, 176, 126, 0.16); --on-accent: #23180E;
+  --sheet-bg: #151920; --backdrop: rgba(0, 0, 0, 0.55); --status-bg: transparent;
+}
+html[data-theme="dawn"] {
+  color-scheme: light;
+  --bg: #F4EEE3; --card: #FBF7F0; --fg: #2E322F; --muted: #6C716B; --line: #D9D0C1; --track: #E8E0D2;
+  --accent: #6F8F76; --accent-soft: rgba(111, 143, 118, 0.18); --on-accent: #F8F5EE;
+  --sheet-bg: #F8F3EA; --backdrop: rgba(46, 50, 47, 0.35);
+  /* iOS draws a white clock (black-translucent), so Dawn paints a soft dark strip under it. */
+  --status-bg: #55655A;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui);
+  min-height: 100vh; min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none; overflow-x: hidden;
+  transition: background-color .4s ease;
+}
+body::before {
+  content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--safe-t);
+  background: var(--status-bg); z-index: 30; pointer-events: none;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+svg { flex: none; }
+
+.app { max-width: 480px; margin: 0 auto; }
+.screen {
+  display: none; flex-direction: column;
+  min-height: 100vh; min-height: 100dvh;
+  padding: calc(var(--safe-t) + 14px) 20px calc(var(--safe-b) + 22px);
+}
+.screen.active { display: flex; animation: enter .5s ease both; }
+@keyframes enter { from { opacity: 0; } to { opacity: 1; } }
+
+.top { display: flex; align-items: center; gap: 2px; min-height: 44px; }
+.spacer { flex: 1; }
+
+/* Buttons */
+.icon-btn {
+  width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--muted); padding: 0; border-radius: 12px;
+}
+.icon-btn:disabled { opacity: .3; cursor: default; }
+.icon-btn[aria-pressed="true"] { color: var(--accent); }
+.icon-btn[aria-pressed="true"] svg path { fill: currentColor; }
+.btn-primary {
+  width: 100%; min-height: 64px; border: none; border-radius: var(--radius);
+  background: var(--accent); color: var(--on-accent); font-size: 18px; font-weight: 500;
+  transition: transform .15s ease;
+}
+.btn-primary:active, .btn-soft:active, .btn-next:active { transform: scale(.985); }
+.btn-soft {
+  width: 100%; min-height: 56px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: none; color: var(--fg); font-size: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: transform .15s ease;
+}
+.btn-text {
+  min-height: 44px; background: none; border: none; color: var(--muted); padding: 0 6px;
+  font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-sm { min-height: 44px; width: auto; padding: 0 18px; font-size: 14px; }
+button:focus-visible, a:focus-visible, .field:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Opening screen */
+.home-mid { flex: 1; position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 24px 4px; }
+.orb {
+  position: absolute; left: 50%; top: 46%; width: 300px; height: 300px; margin: -150px 0 0 -150px;
+  border-radius: 50%; pointer-events: none; z-index: -1;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 68%);
+  animation: orb 10s ease-in-out infinite;
+}
+@keyframes orb { 0%, 100% { transform: scale(.8); opacity: .7; } 50% { transform: scale(1.12); opacity: 1; } }
+.hey { margin: 0; font-family: var(--font-card); font-weight: 400; font-size: 64px; line-height: 1; letter-spacing: -0.01em; }
+.hey em { font-style: italic; color: var(--accent); }
+.hey-sub { margin: 0; font-family: var(--font-card); font-size: 26px; line-height: 1.25; color: var(--muted); }
+.home-bottom { display: flex; flex-direction: column; gap: 10px; }
+.home-bottom .btn-text { align-self: center; }
+
+/* The deck */
+.deck-card {
+  flex: 1; position: relative; margin: 10px 0 14px; min-height: 380px;
+  background: var(--card); border-radius: 26px; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 64px 26px 34px; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+.deck-card.go-next { animation: from-right .45s ease both; }
+.deck-card.go-back { animation: from-left .45s ease both; }
+@keyframes from-right { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes from-left { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+.card-label {
+  position: absolute; top: 24px; left: 26px; right: 26px; z-index: 2;
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+}
+.card-text { margin: 0; font-family: var(--font-card); font-size: 40px; line-height: 1.12; text-wrap: pretty; overflow-wrap: break-word; }
+.card-text em { font-style: italic; color: var(--accent); }
+.kind .card-text { text-align: center; }
+.attr { display: flex; flex-direction: column; gap: 4px; margin-top: 22px; }
+.attr .who { font-size: 15px; }
+.attr .src { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.card-why { margin: 18px 0 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.card-actions { margin-top: 26px; }
+.card-done { margin: 26px 0 0; font-family: var(--font-card); font-style: italic; font-size: 26px; color: var(--accent); animation: enter .5s ease both; }
+
+.deck-bottom { display: flex; gap: 10px; align-items: center; }
+.btn-next {
+  flex: 1; min-height: 58px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: none; color: var(--fg); font-size: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: transform .15s ease;
+}
+.deck-hint { margin: 0 0 8px; text-align: center; font-size: 12px; color: var(--muted); }
+
+/* Breathe */
+.breathe { align-items: center; text-align: center; }
+.breath-wrap { position: relative; width: min(240px, 62vw); aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.breath {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0%, color-mix(in srgb, var(--accent) 45%, transparent) 55%, transparent 72%);
+  opacity: .85; transform: scale(.42); transition: transform 1.2s ease;
+}
+.breath.in { transform: scale(1); transition: transform 4s ease-in-out; }
+.breath.out { transform: scale(.42); transition: transform 6s ease-in-out; }
+.cue { position: relative; font-family: var(--font-card); font-style: italic; font-size: 24px; color: var(--fg); transition: opacity .6s ease; }
+.breath-end { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; align-items: center; animation: enter .6s ease both; }
+.breath-end p { margin: 0; font-family: var(--font-card); font-size: 28px; line-height: 1.2; }
+
+/* Grounding */
+.ground { cursor: pointer; }
+.g-num { font-family: var(--font-card); font-size: 120px; line-height: .9; color: var(--accent); }
+.g-step { animation: enter .45s ease both; }
+.g-dots { position: absolute; bottom: 26px; left: 26px; display: flex; gap: 8px; }
+.g-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--track); }
+.g-dots i.on { background: var(--accent); }
+.g-tap { position: absolute; bottom: 20px; right: 26px; font-size: 12px; color: var(--muted); }
+
+/* Support */
+.support { justify-content: flex-start; overflow-y: auto; }
+.help-h { margin: 0 0 14px; font-family: var(--font-card); font-weight: 400; font-size: 32px; line-height: 1.12; }
+.help-p { margin: 0 0 16px; font-size: 15px; line-height: 1.6; }
+.lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lines a {
+  display: flex; align-items: center; gap: 14px; min-height: 58px; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 14px; text-decoration: none;
+}
+.lines b { font-family: var(--font-card); font-weight: 400; font-size: 26px; flex: none; min-width: 52px; color: var(--accent); }
+.lines span { font-size: 13px; line-height: 1.4; }
+.lines small { display: block; color: var(--muted); font-size: 12px; }
+.help-foot { margin: 14px 0 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+
+/* Picture cards */
+.scene { padding: 0; justify-content: flex-end; background: #0B1020; }
+.scene svg.art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scene .scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 58%; pointer-events: none; }
+.scene .over { position: relative; z-index: 1; padding: 0 26px 30px; }
+.scene .card-text { font-size: 32px; text-shadow: 0 1px 14px rgba(0, 0, 0, .35); }
+.scene .card-text em { color: inherit; }
+.scene .attr .src { color: inherit; opacity: .75; }
+.tw { animation: twinkle 5s ease-in-out infinite; }
+.drift { animation: drift 60s ease-in-out infinite alternate; }
+.bob { animation: bob 9s ease-in-out infinite alternate; }
+.shimmer { animation: shimmer 4s ease-in-out infinite; }
+.sunrise { animation: sunrise 40s ease-out both; }
+.pass { animation: pass 120s linear infinite; }
+.slide { animation: slide 12s ease-in infinite; }
+.wander { animation: wander 12s ease-in-out infinite; }
+.blink { animation: blink 4s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@keyframes drift { from { transform: translateX(0); } to { transform: translateX(-16px); } }
+@keyframes bob { from { transform: translateX(-10px); } to { transform: translateX(10px); } }
+@keyframes shimmer { 0%, 100% { opacity: .15; } 50% { opacity: .65; } }
+@keyframes sunrise { from { transform: translateY(30px); } to { transform: none; } }
+@keyframes pass { from { transform: translateX(-240px); } to { transform: translateX(460px); } }
+@keyframes slide { from { transform: translateY(-40px); } to { transform: translateY(470px); } }
+@keyframes wander { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(var(--dx), var(--dy)); } }
+@keyframes blink { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
+
+/* Sheets and dialogs */
+.backdrop {
+  position: fixed; inset: 0; background: var(--backdrop); z-index: 40;
+  display: flex; align-items: flex-end; justify-content: center; animation: fadein .25s ease both;
+}
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.sheet {
+  width: 100%; max-width: 480px; max-height: 88vh; max-height: 88dvh; overflow-y: auto;
+  background: var(--sheet-bg); color: var(--fg);
+  border-top: 1px solid var(--line); border-radius: 22px 22px 0 0;
+  padding: 8px 22px calc(var(--safe-b) + 28px);
+  animation: sheet-up .3s ease both;
+}
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: -8px; background: var(--sheet-bg); padding: 8px 0; z-index: 1; }
+.sheet h3 { margin: 0; font-family: var(--font-card); font-weight: 400; font-size: 30px; }
+.set { padding: 18px 0; border-top: 1px solid var(--track); display: flex; flex-direction: column; gap: 10px; }
+.set h4 { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.set .hint { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.seg button {
+  min-height: 52px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: none; color: var(--fg); font-size: 15px;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.field {
+  width: 100%; min-height: 48px; padding: 12px 14px; background: transparent;
+  border: 1px solid var(--line); border-radius: 12px; font-size: 16px; resize: vertical;
+}
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.list li { display: flex; gap: 6px; align-items: flex-start; }
+.list .txt {
+  flex: 1; min-width: 0; padding: 11px 0 0; background: none; border: none; text-align: left;
+  font-size: 14px; line-height: 1.45; color: var(--fg);
+}
+.list .txt small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.empty { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body data-screen="home">
+<main class="app">
+
+  <!-- OPENING SCREEN -->
+  <section class="screen" id="s-home" aria-label="Start">
+    <div class="top">
+      <div class="spacer"></div>
+      <button class="icon-btn" data-gear aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+    <div class="home-mid">
+      <div class="orb" aria-hidden="true"></div>
+      <h1 class="hey">Hey.<br><em>You're okay.</em></h1>
+      <p class="hey-sub" id="heySub">Let's slow down for a minute.</p>
+    </div>
+    <div class="home-bottom">
+      <button class="btn-primary" id="showBtn">Show me something</button>
+      <button class="btn-soft" id="breatheBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8.5" opacity=".45"/></svg>
+        Breathe
+      </button>
+      <button class="btn-text" id="helpBtn">If it's more than stress</button>
+    </div>
+  </section>
+
+  <!-- THE DECK -->
+  <section class="screen" id="s-deck" aria-label="Cards">
+    <div class="top">
+      <button class="icon-btn" id="homeBtn" aria-label="Back to start">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      </button>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="favBtn" aria-label="Save this card" aria-pressed="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+      </button>
+      <button class="icon-btn" data-gear aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+    <div class="deck-card" id="card" aria-live="polite"></div>
+    <p class="deck-hint" id="deckHint" hidden>tap the card or swipe for the next one</p>
+    <div class="deck-bottom">
+      <button class="icon-btn" id="prevBtn" aria-label="Previous card" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button class="btn-next" id="nextBtn">
+        Next
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+  </section>
+</main>
+
+<!-- SETTINGS SHEET -->
+<div class="backdrop" id="settings" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="sheet-head">
+      <h3 id="setTitle">Settings</h3>
+      <button class="icon-btn" data-close aria-label="Close settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="set">
+      <h4>Look</h4>
+      <div class="seg">
+        <button data-theme-pick="night" aria-pressed="true">Night</button>
+        <button data-theme-pick="dawn" aria-pressed="false">Dawn</button>
+      </div>
+    </div>
+    <div class="set">
+      <h4>Saved</h4>
+      <ul class="list" id="favList"></ul>
+    </div>
+    <div class="set">
+      <h4><label for="cqText">Add your own quote</label></h4>
+      <p class="hint">Only if you feel like it. It joins the cards.</p>
+      <textarea class="field" id="cqText" rows="2" placeholder="Something that calms you"></textarea>
+      <label for="cqWho" class="hint">Who said it (optional)</label>
+      <input class="field" id="cqWho" autocomplete="off">
+      <div class="row"><button class="btn-soft btn-sm" id="cqAdd">Add quote</button></div>
+      <ul class="list" id="customList"></ul>
+    </div>
+    <div class="set">
+      <h4>If it's more than stress</h4>
+      <div id="setHelp"></div>
+    </div>
+    <div class="set">
+      <p class="hint">Everything here stays on this device. Nothing is sent anywhere.</p>
+    </div>
+  </div>
+</div>
+
+<!-- HELP SHEET (from the opening screen) -->
+<div class="backdrop" id="help" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="sheet-head">
+      <h3 id="helpTitle">You're not alone</h3>
+      <button class="icon-btn" data-close aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="set" style="border-top: none; padding-top: 4px" id="sheetHelp"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const KEY = 'breathe-out.v1';
+
+// Quotes. *word* marks the emphasised part. attr = the attribution is not certain.
+const QUOTES = [
+  { id: 'seneca', t: 'We suffer more often in *imagination* than in reality.', a: 'Seneca', s: 'philosopher · Letters to Lucilius, 13' },
+  { id: 'wiles', t: "You enter the first room of the mansion and it's completely dark. You stumble around bumping into the furniture... Finally, after six months or so, *you find the light switch.*", a: 'Andrew Wiles', s: "mathematician, proved Fermat's Last Theorem · NOVA, 1997" },
+  { id: 'polya', t: "If you can't solve a problem, then there is an easier problem you can solve: *find it.*", a: 'George Pólya', s: 'mathematician · How to Solve It', attr: true },
+  { id: 'lamott1', t: 'Bird by bird, buddy. *Just take it bird by bird.*', a: 'Anne Lamott', s: "writer · Bird by Bird, 1994. Her father's advice to her brother, stuck on a school report due the next day" },
+  { id: 'lamott2', t: 'Almost everything will work again if you unplug it for a few minutes, *including you.*', a: 'Anne Lamott', s: 'writer · TED talk, 2017' },
+  { id: 'marcus1', t: 'Never let the future disturb you. You will meet it, if you have to, *with the same weapons of reason* which today arm you against the present.', a: 'Marcus Aurelius', s: 'Roman emperor · Meditations 7.8' },
+  { id: 'marcus2', t: 'If you are distressed by anything external, the pain is not due to the thing itself, but to your estimate of it; and *this you have the power to revoke* at any moment.', a: 'Marcus Aurelius', s: 'Roman emperor · Meditations 8.47' },
+  { id: 'curie1', t: 'Nothing in life is to be feared, it is only to be understood. *Now is the time to understand more*, so that we may fear less.', a: 'Marie Curie', s: 'physicist and chemist, Nobel 1903 and 1911', attr: true },
+  { id: 'curie2', t: 'One never notices what has been done; *one can only see what remains to be done.*', a: 'Marie Curie', s: 'letter to her brother, 1894' },
+  { id: 'hawking', t: 'However difficult life may seem, *there is always something you can do* and succeed at.', a: 'Stephen Hawking', s: 'physicist' },
+  { id: 'feynman1', t: "I can live with doubt and uncertainty and not knowing. I think it's much more interesting to live *not knowing* than to have answers which might be wrong.", a: 'Richard Feynman', s: 'physicist · BBC Horizon, 1981' },
+  { id: 'feynman2', t: 'I have no responsibility to live up to *what other people think I ought to accomplish.*', a: 'Richard Feynman', s: "physicist · Surely You're Joking, Mr. Feynman!, 1985" },
+  { id: 'gandalf', t: 'All we have to decide is *what to do with the time that is given us.*', a: 'Gandalf', s: 'J.R.R. Tolkien, The Fellowship of the Ring' },
+  { id: 'mrrogers', t: "Anything that's human is mentionable, and anything that is mentionable can be *more manageable.*", a: 'Fred Rogers', s: "children's TV host, Mister Rogers' Neighborhood" },
+  { id: 'sagan', t: "Look again at that dot. That's here. That's home. *That's us.*", a: 'Carl Sagan', s: 'astronomer · Pale Blue Dot, 1994' },
+  { id: 'mirzakhani', t: 'The beauty of mathematics only shows itself to *more patient followers.*', a: 'Maryam Mirzakhani', s: 'mathematician, Fields Medal 2014' },
+  { id: 'tao', t: 'Does one have to be a genius to do mathematics? The answer is *an emphatic NO.*', a: 'Terence Tao', s: 'mathematician, Fields Medal 2006' },
+  { id: 'oliver1', t: 'You do not have to be good. You do not have to walk on your knees for a hundred miles through the desert, repenting. *You only have to let the soft animal of your body love what it loves.*', a: 'Mary Oliver', s: 'poet · Wild Geese, 1986' },
+  { id: 'oliver2', t: 'Instructions for living a life: Pay attention. *Be astonished.* Tell about it.', a: 'Mary Oliver', s: 'poet · Sometimes, 2008' },
+  { id: 'rilke', t: 'Be patient toward all that is unsolved in your heart and try to *love the questions themselves.*', a: 'Rainer Maria Rilke', s: 'poet · Letters to a Young Poet, 1903' },
+  { id: 'epictetus', t: 'Some things are *within our power*, while others are not.', a: 'Epictetus', s: 'philosopher · Enchiridion, 1' },
+  { id: 'crogers', t: 'The curious paradox is that when I accept myself just as I am, *then I can change.*', a: 'Carl Rogers', s: 'psychologist, founder of person-centred therapy · On Becoming a Person, 1961' },
+  { id: 'dickinson', t: '“Hope” is the thing with feathers, *that perches in the soul.*', a: 'Emily Dickinson', s: 'poet · c. 1861' },
+  { id: 'camus', t: 'In the depths of winter, I finally learned that within me there lay *an invincible summer.*', a: 'Albert Camus', s: 'writer · Return to Tipasa, 1952 (translated)' },
+  { id: 'dweck', t: '*Becoming* is better than being.', a: 'Carol Dweck', s: 'psychologist · Mindset, 2006' },
+  { id: 'newton', t: 'I seem to have been only like a boy playing on the seashore... whilst *the great ocean of truth* lay all undiscovered before me.', a: 'Isaac Newton', s: "physicist and mathematician · recalled in Brewster's Memoirs, 1855" },
+  { id: 'james', t: 'The greatest weapon against stress is our ability to *choose one thought over another.*', a: 'William James', s: 'psychologist', attr: true },
+  { id: 'neff', t: "With self-compassion, we give ourselves the same kindness and care *we'd give to a good friend.*", a: 'Kristin Neff', s: 'psychologist who studies self-compassion' },
+  { id: 'angelou', t: 'You may not control all the events that happen to you, but you can decide *not to be reduced by them.*', a: 'Maya Angelou', s: 'poet · Letter to My Daughter, 2008' },
+  { id: 'berry', t: 'I come into the peace of wild things who do not tax their lives with *forethought of grief.*', a: 'Wendell Berry', s: 'poet · The Peace of Wild Things, 1968' },
+];
+
+// Kind words, in a therapist's voice.
+const KIND = [
+  { id: 'tonight', t: "You don't have to fix everything *tonight.*" },
+  { id: 'toomuch', t: "Overwhelm means *too much at once.* It doesn't mean *you can't.*" },
+  { id: 'jaw', t: 'Unclench your jaw. Drop your shoulders. *Let your hands go soft.*' },
+  { id: 'worth', t: "Your worth isn't *your test score.*" },
+  { id: 'weather', t: 'Feelings are like weather. *This one will pass, too.*' },
+  { id: 'hundred', t: "You've gotten through *every hard day* you've had so far." },
+  { id: 'rest', t: "Resting isn't quitting. *It's part of it.*" },
+  { id: 'onething', t: 'One thing at a time is *how everything* has ever been done.' },
+  { id: 'progress', t: "You're allowed to be *a work in progress.*" },
+  { id: 'fiveminutes', t: 'Nothing needs an answer *in the next five minutes.*' },
+  { id: 'friend', t: "Talk to yourself the way you'd talk to *a friend who felt like this.*" },
+  { id: 'brain', t: "Your brain is trying to protect you. *You can thank it, and let it rest.*" },
+  { id: 'list', t: 'The list in your head is *louder than it is long.*' },
+  { id: 'ready', t: "You don't have to feel ready. You only have to be okay *for the next minute.*" },
+  { id: 'tired', t: "Tired isn't the same as *failing.*" },
+  { id: 'sense', t: 'It makes sense that you feel this way. *A lot is going on.*' },
+  { id: 'exhale', t: 'Breathe out a little longer than you breathe in. *That slows your heart down.*' },
+  { id: 'hand', t: 'Put a hand on your chest. Feel it rise and fall. *You are here.*' },
+  { id: 'smallslow', t: 'Small is fine. Slow is fine. *Stopping for a moment* is fine.' },
+  { id: 'enough', t: "You've done enough for this moment. *Just this moment.*" },
+  { id: 'notalone', t: 'Lots of people feel exactly like this right now. *You are not the only one.*' },
+  { id: 'kindnow', t: "Be gentle with yourself. *You're doing the best you can* with what you have today." },
+  { id: 'future', t: "Future you won't remember this exact feeling. *They'll remember you got through it.*" },
+  { id: 'soft', t: 'Let your face go soft. Your forehead, your eyes, *your mouth.*' },
+];
+
+// One tiny thing: tap-only suggestions, no study pressure.
+const TINY = [
+  { id: 'water', t: 'Drink a glass of water.', why: "Even mild thirst can make you feel more tense and foggy. It's an easy fix." },
+  { id: 'window', t: 'Open a window and take one breath of outside air.', why: 'Cooler air and a different smell tell your body the moment has changed.' },
+  { id: 'stretch', t: 'Stand up. Reach as high as you can, then let your arms fall.', why: 'Stress makes muscles brace. Stretching tells them they can let go.' },
+  { id: 'face', t: 'Splash your face with cool water.', why: 'Cold water on your face can slow your heart rate. Your body has a built-in reflex for it.' },
+  { id: 'far', t: 'Look out the window and find the farthest thing you can see.', why: 'Looking far away relaxes your eyes, and it gives your mind a wider view for a moment.' },
+  { id: 'phone', t: 'Put the phone face down for three minutes. Just sit.', why: "Nothing will happen in three minutes that can't wait. This app will still be here." },
+  { id: 'song', t: 'Play one song you love, start to finish.', why: "A song has an end. It's a safe little break with edges." },
+  { id: 'snack', t: 'Eat a little something.', why: 'Low blood sugar can feel a lot like anxiety: shaky, irritable, on edge.' },
+  { id: 'shoulders', t: 'Roll your shoulders back slowly, five times.', why: 'A lot of stress sits in your neck and shoulders without you noticing.' },
+  { id: 'comfy', t: 'Change into something comfy.', why: 'Small comforts tell your body that you are safe right now.' },
+  { id: 'outside', t: 'Step outside for one minute. Look at the sky.', why: 'Daylight and open space are some of the oldest calming signals there are.' },
+  { id: 'desk', t: 'Tidy one tiny corner. Just one.', why: 'A little order you can see makes the rest feel a bit more possible.' },
+  { id: 'text', t: 'Send "hey" to someone you like.', why: "You don't have to explain anything. Connection helps, even a small one." },
+];
+
+// Picture cards: calm scenes drawn in SVG, each with a short line over it.
+const SCENES = [
+  { id: 'night', t: 'Remember to look up at the stars and *not down at your feet.*', a: 'Stephen Hawking', s: 'physicist · London Paralympics, 2012', ink: '#FFFFFF', scrim: 'linear-gradient(to top, rgba(5,8,20,.75), transparent)' },
+  { id: 'sea', t: 'Breathe like the tide. *Slowly in. Slowly out.*', ink: '#FFFFFF', scrim: 'linear-gradient(to top, rgba(18,26,48,.7), transparent)' },
+  { id: 'dawn', t: 'In the end the Shadow was only *a small and passing thing.*', a: 'J.R.R. Tolkien', s: 'The Return of the King', ink: '#FFFFFF', scrim: 'linear-gradient(to top, rgba(28,24,44,.8), transparent)' },
+  { id: 'clouds', t: 'You are the sky. *Everything else is just the weather.*', a: 'Pema Chödrön', s: 'Buddhist teacher', attr: true, ink: '#26303A', scrim: 'linear-gradient(to top, rgba(250,246,238,.85), transparent)' },
+  { id: 'rain', t: "Let it rain for a while. *You don't have to go anywhere.*", ink: '#FFFFFF', scrim: 'linear-gradient(to top, rgba(14,18,28,.8), transparent)' },
+  { id: 'forest', t: '*Small lights* still count.', ink: '#FFFFFF', scrim: 'linear-gradient(to top, rgba(5,14,13,.75), transparent)' },
+];
+
+const GROUND = [
+  { n: '5', t: 'things you can see', h: 'Look slowly. Colors, corners, the light on something.' },
+  { n: '4', t: 'things you can touch', h: 'Your sleeve, the desk, your feet inside your socks.' },
+  { n: '3', t: 'things you can hear', h: 'Even quiet ones. A fan, a car, your own breath.' },
+  { n: '2', t: 'things you can smell', h: "Or two smells you like, if nothing's around." },
+  { n: '1', t: 'thing you can taste', h: 'Or take a slow sip of water.' },
+];
+
+// Verified 2026-10-05.
+const LINES = [
+  { n: '109', tel: '109', t: 'Suicide prevention line', s: '24 hours, every day' },
+  { n: '1577-0199', tel: '15770199', t: 'Mental health crisis line', s: '24 hours, every day' },
+  { n: '1388', tel: '1388', t: 'Youth counseling, ages 9 to 24', s: '24 hours, also by text and online' },
+  { n: '119', tel: '119', t: 'Emergency', s: 'If you or someone else is in danger now' },
+];
+
+const LABELS = { quote: 'worth reading', kind: 'a reminder', tiny: 'one tiny thing', breathe: 'breathe with me', ground: 'come back to the room', support: "if it's more than stress" };
+const WEIGHTS = { quote: 30, kind: 24, picture: 16, tiny: 12, breathe: 9, ground: 6 };
+
+// ---------- state ----------
+const DEFAULTS = { theme: 'night', favs: [], custom: [], seen: {} };
+const fresh = () => JSON.parse(JSON.stringify(DEFAULTS));
+let S = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return sanitize(JSON.parse(raw));
+  } catch (e) { /* storage blocked or corrupt: start clean */ }
+  return fresh();
+}
+function sanitize(o) {
+  const s = Object.assign(fresh(), o && typeof o === 'object' ? o : {});
+  for (const k of ['favs', 'custom']) if (!Array.isArray(s[k])) s[k] = [];
+  if (!s.seen || typeof s.seen !== 'object' || Array.isArray(s.seen)) s.seen = {};
+  if (s.theme !== 'dawn') s.theme = 'night';
+  return s;
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private mode: keep going in memory */ }
+}
+
+// ---------- helpers ----------
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (t) => esc(t).replace(/\*(.+?)\*/g, '<em>$1</em>');
+const plain = (t) => String(t).replace(/\*/g, '');
+const rnd = (a, b) => a + Math.random() * (b - a);
+const f1 = (n) => n.toFixed(1);
+const sourceLine = (q) => (q.s || '') + (q.attr ? ' · commonly attributed' : '');
+
+function textSize(len, scene) {
+  const tiers = scene ? [34, 30, 26, 23, 21] : [44, 38, 32, 27, 23];
+  const i = len <= 45 ? 0 : len <= 80 ? 1 : len <= 120 ? 2 : len <= 170 ? 3 : 4;
+  const narrow = Math.min(window.innerWidth, 480) < 370 ? 0.88 : 1;
+  return Math.round(tiers[i] * narrow);
+}
+
+// ---------- cards ----------
+function allQuotes() {
+  return QUOTES.concat(S.custom.map((c) => ({ id: c.id, t: c.t, a: c.a || 'Unknown', s: 'your quote' })));
+}
+function itemsOf(type) {
+  switch (type) {
+    case 'quote': return allQuotes();
+    case 'kind': return KIND;
+    case 'picture': return SCENES;
+    case 'tiny': return TINY;
+    default: return [{ id: '1' }];
+  }
+}
+const keyOf = (c) => c.type + ':' + c.item.id;
+function findCard(key) {
+  const i = key.indexOf(':');
+  const type = key.slice(0, i), id = key.slice(i + 1);
+  const item = itemsOf(type).find((x) => x.id === id);
+  return item ? { type, item } : null;
+}
+const savable = (type) => ['quote', 'kind', 'picture', 'tiny'].includes(type);
+
+// No repeats inside a type until all of it has been seen.
+function pickItem(type, lastId) {
+  const items = itemsOf(type);
+  let seen = (S.seen[type] || []).filter((id) => items.some((x) => x.id === id));
+  let pool = items.filter((x) => !seen.includes(x.id));
+  if (!pool.length) {
+    seen = lastId ? [lastId] : [];
+    pool = items.filter((x) => !seen.includes(x.id));
+    if (!pool.length) pool = items;
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  S.seen[type] = seen.concat(pick.id);
+  save();
+  return pick;
+}
+function weighted() {
+  const entries = Object.entries(WEIGHTS);
+  let r = Math.random() * entries.reduce((a, [, w]) => a + w, 0);
+  for (const [t, w] of entries) { r -= w; if (r <= 0) return t; }
+  return 'quote';
+}
+
+let hist = [], pos = -1, dealt = 0, sinceSupport = 0;
+function dealCard() {
+  dealt++; sinceSupport++;
+  // The support card shows up now and then, never in the first few cards.
+  if (dealt > 6 && sinceSupport > 16 && Math.random() < 0.12) { sinceSupport = 0; return { type: 'support', item: { id: '1' } }; }
+  const recent = hist.slice(-2).map((c) => c.type);
+  const exercise = (t) => t === 'breathe' || t === 'ground';
+  let type = 'quote';
+  for (let tries = 0; tries < 12; tries++) {
+    type = weighted();
+    const repeat = type === recent[recent.length - 1] && type !== 'quote' && type !== 'kind';
+    if (!repeat && !(exercise(type) && recent.some(exercise))) break;
+  }
+  const last = hist.length ? hist[hist.length - 1] : null;
+  return { type, item: pickItem(type, last && last.type === type ? last.item.id : null) };
+}
+
+// ---------- scenes ----------
+function sceneSvg(id) {
+  const halo = (id, color) => `<radialGradient id="${id}"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient>`;
+  const open = '<svg class="art" viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">';
+  let s = '';
+  if (id === 'night') {
+    s += '<defs><linearGradient id="gNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#060A1C"/><stop offset=".6" stop-color="#18224C"/><stop offset="1" stop-color="#36396A"/></linearGradient>' + halo('hMoon', '#F3EAD3') +
+      '<mask id="mMoon"><circle cx="222" cy="84" r="15" fill="#fff"/><circle cx="229" cy="79" r="13" fill="#000"/></mask></defs>';
+    s += '<rect width="300" height="420" fill="url(#gNight)"/><g class="drift">';
+    for (let i = 0; i < 80; i++) {
+      const tw = Math.random() < 0.45;
+      s += `<circle cx="${f1(rnd(-10, 320))}" cy="${f1(rnd(0, 330))}" r="${rnd(0.4, 1.5).toFixed(2)}" fill="#fff" opacity="${rnd(0.3, 0.95).toFixed(2)}"` +
+        (tw ? ` class="tw" style="animation-duration:${f1(rnd(3, 7))}s;animation-delay:-${f1(rnd(0, 7))}s"` : '') + '/>';
+    }
+    s += '</g><circle cx="222" cy="84" r="46" fill="url(#hMoon)"/><circle cx="222" cy="84" r="15" fill="#F3EAD3" mask="url(#mMoon)"/>';
+    s += '<path d="M0 352 Q60 322 120 342 T240 332 T300 338 V420 H0Z" fill="#0D1226"/><path d="M0 380 Q80 356 150 374 T300 366 V420 H0Z" fill="#060914"/>';
+  } else if (id === 'sea') {
+    s += '<defs><linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#55659A"/><stop offset=".55" stop-color="#C495A0"/><stop offset="1" stop-color="#F4CDA6"/></linearGradient>' +
+      '<linearGradient id="gSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7283AC"/><stop offset="1" stop-color="#1F2A47"/></linearGradient>' + halo('hSun', '#FCE6C2') + '</defs>';
+    s += '<rect width="300" height="240" fill="url(#gSky)"/><circle cx="150" cy="238" r="80" fill="url(#hSun)"/><circle cx="150" cy="238" r="32" fill="#FCE6C2"/>';
+    s += '<rect y="238" width="300" height="182" fill="url(#gSea)"/>';
+    for (let i = 0; i < 9; i++) {
+      const y = 246 + i * 9, w = 54 - i * 5;
+      s += `<line x1="${150 - w / 2}" y1="${y}" x2="${150 + w / 2}" y2="${y}" stroke="#FCE6C2" stroke-width="2" stroke-linecap="round" class="shimmer" style="animation-delay:-${f1(rnd(0, 4))}s"/>`;
+    }
+    for (let i = 0; i < 7; i++) {
+      const y = 262 + i * 22;
+      let d = `M-40 ${y}`;
+      for (let x = -40; x < 340; x += 40) d += ` q10 -${2 + i * 0.6} 20 0 t20 0`;
+      s += `<path d="${d}" fill="none" stroke="#fff" stroke-opacity="${(0.1 + i * 0.015).toFixed(3)}" stroke-width="1.2" class="bob" style="animation-duration:${f1(rnd(7, 12))}s;animation-delay:-${f1(rnd(0, 10))}s"/>`;
+    }
+  } else if (id === 'dawn') {
+    s += '<defs><linearGradient id="gDawn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27304F"/><stop offset=".45" stop-color="#7D6A96"/><stop offset=".72" stop-color="#E9A58A"/><stop offset="1" stop-color="#F8D7A4"/></linearGradient>' + halo('hDawn', '#FFE7BE') + '</defs>';
+    s += '<rect width="300" height="420" fill="url(#gDawn)"/>';
+    s += '<g class="sunrise"><circle cx="176" cy="204" r="70" fill="url(#hDawn)"/><circle cx="176" cy="204" r="24" fill="#FFE7BE"/></g>';
+    s += '<path d="M0 262 L45 226 L90 250 L132 214 L180 246 L222 222 L262 248 L300 232 V420 H0Z" fill="#9A86A8" opacity=".9"/>';
+    s += '<ellipse cx="150" cy="270" rx="220" ry="16" fill="#F6D3B8" opacity=".3" class="bob" style="animation-duration:14s"/>';
+    s += '<path d="M0 292 L50 246 L95 280 L150 238 L205 282 L250 254 L300 286 V420 H0Z" fill="#5F557E"/>';
+    s += '<path d="M0 342 L60 302 L120 336 L170 310 L230 346 L300 316 V420 H0Z" fill="#2C2944"/>';
+  } else if (id === 'clouds') {
+    s += '<defs><linearGradient id="gDay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7EA7D5"/><stop offset=".7" stop-color="#CFE0EE"/><stop offset="1" stop-color="#F6EEE2"/></linearGradient></defs>';
+    s += '<rect width="300" height="420" fill="url(#gDay)"/>';
+    const cloud = '<ellipse cx="0" cy="0" rx="40" ry="17"/><ellipse cx="24" cy="-11" rx="26" ry="19"/><ellipse cx="-20" cy="-7" rx="22" ry="15"/><ellipse cx="48" cy="2" rx="24" ry="12"/>';
+    [[40, 0.9, 150, 0], [110, 0.7, 190, 60], [170, 1.15, 130, 20], [70, 0.55, 220, 120], [230, 0.8, 170, 90]].forEach(([y, sc, dur, start]) => {
+      s += `<g class="pass" style="animation-duration:${dur}s;animation-delay:-${f1(dur * start / 140)}s"><g transform="translate(0 ${y}) scale(${sc})" fill="#fff" opacity="${(0.65 + sc * 0.2).toFixed(2)}">${cloud}</g></g>`;
+    });
+    s += '<path d="M0 352 Q90 318 170 338 T300 330 V420 H0Z" fill="#B7C8A9"/><path d="M0 382 Q100 356 200 372 T300 368 V420 H0Z" fill="#97AE8E"/>';
+  } else if (id === 'rain') {
+    s += '<defs><linearGradient id="gRain" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#19202E"/><stop offset="1" stop-color="#2C3649"/></linearGradient><filter id="fBlur"><feGaussianBlur stdDeviation="7"/></filter></defs>';
+    s += '<rect width="300" height="420" fill="url(#gRain)"/><g filter="url(#fBlur)">';
+    const warm = ['#F2B66B', '#E58F6E', '#8FB3E0', '#F5D49A'];
+    for (let i = 0; i < 16; i++) s += `<circle cx="${f1(rnd(0, 300))}" cy="${f1(rnd(170, 360))}" r="${f1(rnd(8, 24))}" fill="${warm[i % 4]}" opacity="${rnd(0.15, 0.35).toFixed(2)}"/>`;
+    s += '</g>';
+    for (let i = 0; i < 70; i++) s += `<circle cx="${f1(rnd(0, 300))}" cy="${f1(rnd(0, 420))}" r="${rnd(0.7, 2.2).toFixed(2)}" fill="#DCE6F4" opacity="${rnd(0.15, 0.4).toFixed(2)}"/>`;
+    for (let i = 0; i < 11; i++) {
+      const x = f1(rnd(10, 290)), r = rnd(1.8, 3).toFixed(1);
+      s += `<g class="slide" style="animation-duration:${f1(rnd(9, 18))}s;animation-delay:-${f1(rnd(0, 18))}s"><line x1="${x}" y1="-26" x2="${x}" y2="0" stroke="#DCE6F4" stroke-opacity=".22" stroke-width="1.4"/><circle cx="${x}" cy="0" r="${r}" fill="#E6EEF8" opacity=".55"/></g>`;
+    }
+  } else if (id === 'forest') {
+    s += '<defs><linearGradient id="gWood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0A1820"/><stop offset=".6" stop-color="#122E2C"/><stop offset="1" stop-color="#1B3A31"/></linearGradient>' + halo('hWood', '#DDEBD2') + '</defs>';
+    s += '<rect width="300" height="420" fill="url(#gWood)"/><circle cx="60" cy="70" r="54" fill="url(#hWood)"/><circle cx="60" cy="70" r="11" fill="#E8EEDC" opacity=".75"/>';
+    const tree = (x, base, h, w) => `M${f1(x)} ${f1(base - h)} L${f1(x + w / 2)} ${base} L${f1(x - w / 2)} ${base}Z`;
+    let back = '', front = '';
+    for (let x = -10; x < 320; x += 26) back += tree(x + rnd(-6, 6), 330, rnd(90, 150), rnd(34, 46));
+    for (let x = 4; x < 320; x += 44) front += tree(x + rnd(-8, 8), 400, rnd(120, 200), rnd(46, 62));
+    s += `<path d="${back}" fill="#0F2725"/><rect y="328" width="300" height="92" fill="#0C1F1D"/><path d="${front}" fill="#06120F"/>`;
+    for (let i = 0; i < 20; i++) {
+      const x = f1(rnd(10, 290)), y = f1(rnd(150, 380));
+      s += `<g class="wander" style="--dx:${f1(rnd(-26, 26))}px;--dy:${f1(rnd(-20, 20))}px;animation-duration:${f1(rnd(9, 16))}s;animation-delay:-${f1(rnd(0, 16))}s">` +
+        `<g class="blink" style="animation-duration:${f1(rnd(2.5, 5))}s;animation-delay:-${f1(rnd(0, 5))}s">` +
+        `<circle cx="${x}" cy="${y}" r="5" fill="#F7E9A0" opacity=".2"/><circle cx="${x}" cy="${y}" r="1.7" fill="#FBF3C4"/></g></g>`;
+    }
+  }
+  return open + s + '</svg>';
+}
+
+// ---------- rendering ----------
+let breathT = null;
+function stopExercises() { clearTimeout(breathT); breathT = null; }
+
+function quoteHtml(q, label) {
+  return `<span class="card-label">${esc(label)}</span>` +
+    `<p class="card-text" style="font-size:${textSize(plain(q.t).length)}px">${fmt(q.t)}</p>` +
+    `<div class="attr"><span class="who">${esc(q.a)}</span><span class="src">${esc(sourceLine(q))}</span></div>`;
+}
+function helpHtml() {
+  return '<p class="help-p">If the heavy feeling won\'t lift, or you\'re having thoughts of hurting yourself, please don\'t carry it alone. Tell an adult you trust: a parent, a teacher, your school counselor.</p>' +
+    '<ul class="lines">' + LINES.map((l) => `<li><a href="tel:${l.tel}"><b>${esc(l.n)}</b><span>${esc(l.t)}<small>${esc(l.s)}</small></span></a></li>`).join('') + '</ul>' +
+    '<p class="help-foot">Counselors are there for exactly this. You don\'t need a "big enough" reason to call.</p>';
+}
+
+function renderCard(card, dir) {
+  stopExercises();
+  const el = $('card');
+  const { type, item } = card;
+  el.className = 'deck-card ' + type + (dir ? ' go-' + dir : '');
+  el.removeAttribute('style');
+  el.dataset.step = '';
+  if (type === 'quote') {
+    el.innerHTML = quoteHtml(item, LABELS.quote);
+  } else if (type === 'kind') {
+    el.innerHTML = `<span class="card-label">${LABELS.kind}</span><p class="card-text" style="font-size:${textSize(plain(item.t).length) + 4}px">${fmt(item.t)}</p>`;
+  } else if (type === 'picture') {
+    el.classList.add('scene');
+    el.style.color = item.ink;
+    el.innerHTML = sceneSvg(item.id) + `<div class="scrim" style="background:${item.scrim}"></div>` +
+      `<div class="over"><p class="card-text" style="font-size:${textSize(plain(item.t).length, true)}px">${fmt(item.t)}</p>` +
+      (item.a ? `<div class="attr"><span class="who">${esc(item.a)}</span><span class="src">${esc(sourceLine(item))}</span></div>` : '') + '</div>';
+  } else if (type === 'tiny') {
+    el.innerHTML = `<span class="card-label">${LABELS.tiny}</span><p class="card-text" style="font-size:${textSize(item.t.length)}px">${esc(item.t)}</p>` +
+      `<p class="card-why">${esc(item.why)}</p><div class="card-actions"><button class="btn-soft" data-did>I did it</button></div>`;
+    el.querySelector('[data-did]').addEventListener('click', () => {
+      el.querySelector('.card-actions').outerHTML = `<p class="card-done">${['Nice. That counts.', 'Good. That was for you.', "There you go. That's enough."][Math.floor(Math.random() * 3)]}</p>`;
+    });
+  } else if (type === 'breathe') {
+    el.innerHTML = `<span class="card-label">${LABELS.breathe}</span>` +
+      '<div class="breath-wrap"><div class="breath"></div><span class="cue"></span></div>' +
+      '<div class="breath-end" hidden><p>That was a minute.<br>Notice your shoulders.</p><button class="btn-soft btn-sm" data-again>One more minute</button></div>';
+    el.querySelector('[data-again]').addEventListener('click', () => runBreath(el));
+    runBreath(el);
+  } else if (type === 'ground') {
+    groundStep(el, 0);
+  } else if (type === 'support') {
+    el.innerHTML = `<span class="card-label">${LABELS.support}</span><h2 class="help-h">You don't have to carry this alone.</h2>` + helpHtml();
+  }
+  if (dir) void el.offsetWidth;
+  updateDeckChrome();
+}
+
+// A circle that grows for 4 s and shrinks for 6 s, six times: about a minute.
+function runBreath(el) {
+  stopExercises();
+  const c = el.querySelector('.breath'), cue = el.querySelector('.cue'), end = el.querySelector('.breath-end');
+  end.hidden = true;
+  el.querySelector('.breath-wrap').hidden = false;
+  let n = 0;
+  const inhale = () => { c.className = 'breath in'; cue.textContent = 'in'; breathT = setTimeout(exhale, 4000); };
+  const exhale = () => { c.className = 'breath out'; cue.textContent = 'out'; breathT = setTimeout(() => (++n < 6 ? inhale() : finish()), 6000); };
+  const finish = () => { c.className = 'breath'; cue.textContent = ''; el.querySelector('.breath-wrap').hidden = true; end.hidden = false; breathT = null; };
+  c.className = 'breath'; cue.textContent = '';
+  breathT = setTimeout(inhale, 900);
+}
+
+// 5-4-3-2-1: step 0 is the intro, 1..5 the senses, 6 the close. One tap per step.
+function groundStep(el, step) {
+  el.dataset.step = String(step);
+  const dots = '<div class="g-dots">' + GROUND.map((_, i) => `<i class="${i < step ? 'on' : ''}"></i>`).join('') + '</div>';
+  let body;
+  if (step === 0) body = `<p class="card-text" style="font-size:38px">Let's come back to the room.</p><p class="card-why">Name each thing quietly, in your head. No need to rush.</p>`;
+  else if (step <= GROUND.length) {
+    const g = GROUND[step - 1];
+    body = `<span class="g-num">${g.n}</span><p class="card-text" style="font-size:34px">${esc(g.t)}</p><p class="card-why">${esc(g.h)}</p>`;
+  } else body = `<p class="card-text" style="font-size:40px">You're here.<br><em>That's enough for now.</em></p>`;
+  el.innerHTML = `<span class="card-label">${LABELS.ground}</span><div class="g-step">${body}</div>` + dots +
+    `<span class="g-tap">${step <= GROUND.length ? (step === 0 ? 'tap to begin' : 'tap when done') : ''}</span>`;
+}
+
+function updateDeckChrome() {
+  const card = hist[pos];
+  const fav = $('favBtn');
+  if (card && savable(card.type)) {
+    fav.hidden = false;
+    const on = S.favs.includes(keyOf(card));
+    fav.setAttribute('aria-pressed', String(on));
+    fav.setAttribute('aria-label', on ? 'Remove from saved' : 'Save this card');
+  } else fav.hidden = true;
+  $('prevBtn').disabled = pos <= 0;
+}
+
+function goNext() {
+  if (pos < hist.length - 1) { pos++; renderCard(hist[pos], 'next'); return; }
+  pushCard(dealCard());
+}
+function goBack() {
+  if (pos <= 0) return;
+  pos--;
+  renderCard(hist[pos], 'back');
+}
+function pushCard(card) {
+  hist = hist.slice(0, pos + 1).concat(card).slice(-50);
+  pos = hist.length - 1;
+  renderCard(card, 'next');
+  $('deckHint').hidden = dealt > 1 || hist.length > 1;
+}
+
+// ---------- screens ----------
+let current = 'home';
+function show(name) {
+  current = name;
+  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 's-' + name));
+  document.body.dataset.screen = name;
+  window.scrollTo(0, 0);
+  if (name !== 'deck') stopExercises();
+}
+function openDeck(first) {
+  show('deck');
+  pushCard(first || dealCard());
+}
+function renderHome() {
+  const h = new Date().getHours();
+  $('heySub').textContent = h >= 22 || h < 5 ? "It's late. Nothing has to be solved tonight." : "Let's slow down for a minute.";
+}
+
+// ---------- theme ----------
+function applyTheme() {
+  document.documentElement.dataset.theme = S.theme;
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', S.theme === 'dawn' ? '#55655A' : '#101318');
+  document.querySelectorAll('[data-theme-pick]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themePick === S.theme)));
+}
+
+// ---------- overlays ----------
+let lastFocus = null;
+function openOverlay(id) {
+  lastFocus = document.activeElement;
+  const el = $(id);
+  el.hidden = false;
+  const f = el.querySelector('[data-close]');
+  if (f) setTimeout(() => f.focus(), 50);
+}
+function closeOverlay(el) {
+  el.hidden = true;
+  if (lastFocus && lastFocus.focus) lastFocus.focus();
+}
+document.querySelectorAll('.backdrop').forEach((bd) => {
+  bd.addEventListener('click', (e) => { if (e.target === bd || e.target.closest('[data-close]')) closeOverlay(bd); });
+});
+const overlayOpen = () => [...document.querySelectorAll('.backdrop')].some((b) => !b.hidden);
+
+// ---------- settings ----------
+function li(text, sub, onOpen, onRemove, label) {
+  const item = document.createElement('li');
+  const t = document.createElement(onOpen ? 'button' : 'span');
+  t.className = 'txt';
+  t.innerHTML = `${esc(text)}${sub ? `<small>${esc(sub)}</small>` : ''}`;
+  if (onOpen) t.addEventListener('click', onOpen);
+  const b = document.createElement('button');
+  b.className = 'icon-btn';
+  b.setAttribute('aria-label', label);
+  b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  b.addEventListener('click', onRemove);
+  item.append(t, b);
+  return item;
+}
+function fillList(ul, items, emptyText) {
+  ul.innerHTML = '';
+  if (!items.length) { const p = document.createElement('li'); p.innerHTML = `<p class="empty">${esc(emptyText)}</p>`; ul.appendChild(p); return; }
+  items.forEach((n) => ul.appendChild(n));
+}
+function cardSummary(c) {
+  if (c.type === 'quote') return [plain(c.item.t), c.item.a];
+  if (c.type === 'picture') return [plain(c.item.t), 'picture card' + (c.item.a ? ' · ' + c.item.a : '')];
+  if (c.type === 'tiny') return [c.item.t, 'one tiny thing'];
+  return [plain(c.item.t), 'a reminder'];
+}
+function renderSettings() {
+  applyTheme();
+  fillList($('favList'), S.favs.map((k) => [k, findCard(k)]).filter(([, c]) => c).map(([k, c]) => {
+    const [text, sub] = cardSummary(c);
+    return li(text, sub, () => { closeOverlay($('settings')); if (current !== 'deck') show('deck'); pushCard(c); },
+      () => { S.favs = S.favs.filter((x) => x !== k); save(); renderSettings(); updateDeckChrome(); }, 'Remove from saved');
+  }), 'Tap the heart on any card to keep it here.');
+  fillList($('customList'), S.custom.map((c) =>
+    li(c.t, c.a || 'Unknown', null, () => {
+      S.custom = S.custom.filter((x) => x.id !== c.id);
+      S.favs = S.favs.filter((x) => x !== 'quote:' + c.id);
+      save(); renderSettings();
+    }, 'Delete this quote')
+  ), 'None yet.');
+}
+
+document.querySelectorAll('[data-gear]').forEach((b) => b.addEventListener('click', () => { renderSettings(); openOverlay('settings'); }));
+document.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', () => {
+  S.theme = b.dataset.themePick; save(); applyTheme();
+}));
+$('cqAdd').addEventListener('click', () => {
+  const t = $('cqText').value.trim().replace(/\*/g, '');
+  if (!t) { $('cqText').focus(); return; }
+  S.custom.push({ id: 'c' + Date.now(), t, a: $('cqWho').value.trim() });
+  $('cqText').value = ''; $('cqWho').value = '';
+  save(); renderSettings();
+});
+
+// ---------- deck input: tap, swipe, keys ----------
+let down = null;
+$('card').addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
+$('card').addEventListener('pointercancel', () => { down = null; });
+$('card').addEventListener('pointerup', (e) => {
+  if (!down) return;
+  const dx = e.clientX - down.x, dy = e.clientY - down.y;
+  down = null;
+  if (e.target.closest('a, button')) return;
+  const card = hist[pos];
+  if (!card) return;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) { if (dx < 0) goNext(); else goBack(); return; }
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) return;
+  if (card.type === 'ground') {
+    const step = Number($('card').dataset.step) || 0;
+    if (step <= GROUND.length) groundStep($('card'), step + 1); else goNext();
+  } else if (card.type !== 'breathe' && card.type !== 'support') goNext();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const open = [...document.querySelectorAll('.backdrop')].reverse().find((b) => !b.hidden);
+    if (open) closeOverlay(open);
+    return;
+  }
+  if (current !== 'deck' || overlayOpen() || ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowRight') goNext();
+  if (e.key === 'ArrowLeft') goBack();
+});
+
+// ---------- wiring ----------
+$('showBtn').addEventListener('click', () => openDeck());
+$('breatheBtn').addEventListener('click', () => openDeck({ type: 'breathe', item: { id: '1' } }));
+$('helpBtn').addEventListener('click', () => openOverlay('help'));
+$('homeBtn').addEventListener('click', () => { renderHome(); show('home'); });
+$('nextBtn').addEventListener('click', goNext);
+$('prevBtn').addEventListener('click', goBack);
+$('favBtn').addEventListener('click', () => {
+  const card = hist[pos];
+  if (!card || !savable(card.type)) return;
+  const k = keyOf(card);
+  S.favs = S.favs.includes(k) ? S.favs.filter((x) => x !== k) : S.favs.concat(k);
+  save(); updateDeckChrome();
+});
+window.addEventListener('resize', () => {
+  const card = hist[pos];
+  if (current === 'deck' && card && (card.type === 'quote' || card.type === 'kind')) renderCard(card);
+});
+
+// ---------- boot ----------
+$('setHelp').innerHTML = helpHtml();
+$('sheetHelp').innerHTML = helpHtml();
+applyTheme();
+renderHome();
+show('home');
+
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+})();
+</script>
+</body>
+</html>

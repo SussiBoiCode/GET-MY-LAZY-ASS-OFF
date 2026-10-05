@@ -1,0 +1,22 @@
+# Static site: no build step, the repo root is the site.
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    # The worker must never be served stale, or updates never reach an
+    # already-installed app.
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    # Netlify serves an unknown extension as octet-stream; browsers want the
+    # manifest media type or they may ignore it when installing the app.
+    Content-Type = "application/manifest+json"
